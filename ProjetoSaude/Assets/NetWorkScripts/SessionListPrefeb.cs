@@ -13,11 +13,16 @@ public class SessionListPrefeb : MonoBehaviour
 
     public void JoinButton()
     {
-        FusionManager.runnerInstance.StartGame(new StartGameArgs() 
+        string sessionName = roomName.text;
+        Debug.Log($"Tentando entrar na sessão: {sessionName}");
+
+        if (FusionManager.runnerInstance != null)
         {
-            SessionName = roomName.text 
-        }); 
-
+            FusionManager.runnerInstance.GetComponent<FusionManager>().JoinSession(sessionName);
+        }
+        else
+        {
+            Debug.LogError("runnerInstance não está inicializado.");
+        }
     }
-
 }
