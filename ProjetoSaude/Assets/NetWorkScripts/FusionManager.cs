@@ -10,6 +10,7 @@ using UnityEngine.SceneManagement;
 
 public class FusionManager : MonoBehaviour, INetworkRunnerCallbacks
 {
+    public static bool sessionCreated = false;
 
     [SerializeField] private NetworkPrefabRef _playerPrefab;
     private Dictionary<PlayerRef, NetworkObject> _spawnedCharacters = new Dictionary<PlayerRef, NetworkObject>();
@@ -19,6 +20,9 @@ public class FusionManager : MonoBehaviour, INetworkRunnerCallbacks
     public Transform sessionListContentParent;
     public GameObject sessionListEntryPrefab;
     public Dictionary<string, GameObject> sessionListUiDictionary = new Dictionary<String, GameObject>();
+
+    private int reconnectAttempts = 0;
+    private const int maxReconnectAttempts = 3;
 
     public string lobbyGameSceneName;
     public GameObject botaoCriacao;
@@ -35,11 +39,12 @@ public class FusionManager : MonoBehaviour, INetworkRunnerCallbacks
 
     private void Start()
     {
-        runnerInstance.JoinSessionLobby(SessionLobby.Shared, lobbyName);
+         runnerInstance.JoinSessionLobby(SessionLobby.Shared, lobbyName);
     }
 
     public void CreatedRandomSession()
     {
+        FusionManager.sessionCreated = true;
         int randomInt = UnityEngine.Random.Range(1000, 9999);
         string randomSessionName = "Room" + randomInt.ToString();
 
@@ -72,36 +77,38 @@ public class FusionManager : MonoBehaviour, INetworkRunnerCallbacks
 
     public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
     {
-        if (runner.IsServer)
-        {
-            // Defina os limites da área onde você deseja que o jogador apareça
-            float minX = -5f; // Mínimo valor de X
-            float maxX = 5f;  // Máximo valor de X
-            float minZ = -5f; // Mínimo valor de Z
-            float maxZ = 5f;  // Máximo valor de Z
+        if (!runner.IsServer) return; // Garante que apenas o servidor realize a instância
 
-            // Gera uma posição aleatória dentro dos limites especificados
-            float randomX = UnityEngine.Random.Range(minX, maxX);
-            float randomZ = UnityEngine.Random.Range(minZ, maxZ);
-            Vector3 spawnPosition = new Vector3(randomX, 1, randomZ);
+        // Verifica se o jogador já foi instanciado para este player
+        if (_spawnedCharacters.ContainsKey(player))
+            return;
 
-            // Instancia o objeto de rede do jogador
-            NetworkObject networkPlayerObject = runner.Spawn(_playerPrefab, spawnPosition, Quaternion.identity, player);
+        // Defina os limites da área onde você deseja que o jogador apareça
+        float minX = -5f;
+        float maxX = 5f;
+        float minZ = -5f;
+        float maxZ = 5f;
 
-            // Atualiza a posição do jogador (acessa o Transform do NetworkObject)
-            UpdatePlayerPosition(networkPlayerObject, spawnPosition);
+        // Gera uma posição aleatória dentro dos limites especificados
+        float randomX = UnityEngine.Random.Range(minX, maxX);
+        float randomZ = UnityEngine.Random.Range(minZ, maxZ);
+        Vector3 spawnPosition = new Vector3(randomX, 1, randomZ);
 
-            // Mantém o controle dos avatares dos jogadores para acesso fácil
-            _spawnedCharacters.Add(player, networkPlayerObject);
-        }
+        // Instancia o objeto de rede do jogador com autoridade de input para o cliente específico
+        NetworkObject networkPlayerObject = runner.Spawn(_playerPrefab, spawnPosition, Quaternion.identity, player);
+
+        // Mantém o controle dos avatares dos jogadores para acesso fácil
+        _spawnedCharacters.Add(player, networkPlayerObject);
     }
 
+    /*
+    Metodo para atualizar  a posição frame a frame (não esta sendo utilizado)
     private void UpdatePlayerPosition(NetworkObject networkPlayerObject, Vector3 position)
     {
         // Acessa o Transform do NetworkObject e atualiza a posição
         Transform playerTransform = networkPlayerObject.transform;
         playerTransform.position = position;
-    }
+    }*/
 
     public int GetSceneIndex(string sceneName)
     {
@@ -218,6 +225,23 @@ public class FusionManager : MonoBehaviour, INetworkRunnerCallbacks
     public void OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason)
     {
         Debug.Log($"Disconnected from server: {reason}");
+
+        if (reconnectAttempts < maxReconnectAttempts)
+        {
+            reconnectAttempts++;
+            Debug.Log($"Attempting to reconnect... Attempt {reconnectAttempts}/{maxReconnectAttempts}");
+            runnerInstance.StartGame(new StartGameArgs()
+            {
+                SessionName = runner.SessionInfo.Name,
+                GameMode = runner.GameMode,
+                Scene = SceneRef.None // Assume the scene is already loaded
+            });
+        }
+        else
+        {
+            Debug.LogError("Max reconnection attempts reached. Failed to reconnect.");
+            // Handle max reconnect attempts reached (e.g., notify player, return to main menu)
+        }
     }
 
     public void OnHostMigration(NetworkRunner runner, HostMigrationToken hostMigrationToken)
@@ -227,7 +251,22 @@ public class FusionManager : MonoBehaviour, INetworkRunnerCallbacks
 
     public void OnInput(NetworkRunner runner, NetworkInput input)
     {
-        // Handle network input if needed
+        var data = new NetworkInputData();
+
+        // Coleta de entrada para movimento em 2D
+        if (Input.GetKey(KeyCode.W))
+            data.direction += Vector2.up;
+
+        if (Input.GetKey(KeyCode.S))
+            data.direction += Vector2.down;
+
+        if (Input.GetKey(KeyCode.A))
+            data.direction += Vector2.left;
+
+        if (Input.GetKey(KeyCode.D))
+            data.direction += Vector2.right;
+
+        input.Set(data);
     }
 
     public void OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input)
@@ -266,14 +305,14 @@ public class FusionManager : MonoBehaviour, INetworkRunnerCallbacks
 
     public void OnSceneLoadDone(NetworkRunner runner)
     {
-        // Ensure the player prefab is instantiated only when necessary
-        if (!runner.IsServer)
+        if (!runner.IsServer) return; // Apenas o servidor deve instanciar o jogador
+
+        // Verifica se o jogador local já tem um objeto associado
+        if (runner.GetPlayerObject(runner.LocalPlayer) == null && !_spawnedCharacters.ContainsKey(runner.LocalPlayer))
         {
-            if (runner.GetPlayerObject(runner.LocalPlayer) == null)
-            {
-                Vector3 spawnPosition = new Vector3(0, 1, 0); // Position as needed
-                runner.Spawn(_playerPrefab, spawnPosition, Quaternion.identity, runner.LocalPlayer);
-            }
+            Vector3 spawnPosition = new Vector3(0, 1, 0); // Define a posição de spawn necessária
+            NetworkObject playerObject = runner.Spawn(_playerPrefab, spawnPosition, Quaternion.identity, runner.LocalPlayer);
+            _spawnedCharacters.Add(runner.LocalPlayer, playerObject);
         }
     }
 
@@ -292,9 +331,29 @@ public class FusionManager : MonoBehaviour, INetworkRunnerCallbacks
         // Handle user simulation messages if needed
     }
 
+    public enum SessionState
+    {
+        NoLobby,
+        InLobby,
+        Loading,
+        InSession
+    }
+
+    public SessionState CurrentSessionState { get; private set; }
+
+    private void SetSessionState(SessionState newState)
+    {
+        CurrentSessionState = newState;
+        // Realize ações baseadas no estado, se necessário.
+    }
 
     void Update()
     {
+        if (sessionCreated)
+        {
+            return; // Sai do método Update e não executa o restante do código
+        }
+
         if (runnerInstance.IsCloudReady)
         {
             Debug.Log("NetworkRunner está pronto para a nuvem.");
@@ -314,4 +373,5 @@ public class FusionManager : MonoBehaviour, INetworkRunnerCallbacks
             Debug.LogWarning("NetworkRunner não está pronto para a nuvem.");
         }
     }
+
 }

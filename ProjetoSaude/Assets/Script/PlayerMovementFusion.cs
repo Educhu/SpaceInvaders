@@ -5,20 +5,24 @@ using Fusion;
 
 public class PlayerMovementFusion : NetworkBehaviour
 {
-    public float moveSpeed = 5f;
-    private Vector2 movement;
+    private Rigidbody2D _rb; // Referência ao Rigidbody2D para movimento 2D
+
+    public float moveSpeed = 5f; // Velocidade de movimento
+
+    private void Awake()
+    {
+        _rb = GetComponent<Rigidbody2D>();
+    }
 
     public override void FixedUpdateNetwork()
     {
-        if (Object.HasInputAuthority)
+        if (GetInput(out NetworkInputData data))
         {
-            float moveX = Input.GetAxis("Horizontal");
-            float moveY = Input.GetAxis("Vertical");
+            // Normaliza a direção para evitar aceleração excessiva
+            data.direction.Normalize();
 
-
-            movement = new Vector2(moveX, moveY);
-            transform.position += (Vector3)(movement * moveSpeed * Runner.DeltaTime);
+            // Move o jogador aplicando força ao Rigidbody2D
+            _rb.velocity = data.direction * moveSpeed;
         }
     }
 }
-

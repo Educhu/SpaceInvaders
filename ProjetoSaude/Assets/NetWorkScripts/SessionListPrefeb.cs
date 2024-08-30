@@ -19,6 +19,7 @@ public class SessionListPrefeb : MonoBehaviour
         if (FusionManager.runnerInstance != null)
         {
             FusionManager.runnerInstance.GetComponent<FusionManager>().JoinSession(sessionName);
+            FusionManager.sessionCreated = true;
         }
         else
         {
