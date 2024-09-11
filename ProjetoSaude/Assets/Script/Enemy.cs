@@ -21,6 +21,7 @@ public class Enemy : NetworkBehaviour
     {
         base.Spawned();
         isInitialized = true;
+
         // Inicie o timer de despawn
         despawnTimer = TickTimer.CreateFromSeconds(Runner, despawnTime);
     }
@@ -34,7 +35,30 @@ public class Enemy : NetworkBehaviour
         {
             IsCollidingWithWall = true;
         }
+
+        //if (collision.CompareTag("Bullet"))
+        //{
+        //    DespawnEnemy(); // Chama a função para despawnar o objeto
+        //}
     }
+
+    //private void OnTriggerEnter2D(Collider2D collision)
+    //{
+    //    Debug.Log("ENCOSTOU!");
+
+    //    if (!isInitialized || !Runner.IsRunning) return;
+
+    //    // Verifica se a colisão é com uma parede
+    //    if (collision.CompareTag("Wall"))
+    //    {
+    //        IsCollidingWithWall = true;
+    //    }
+
+    //    //if (collision.CompareTag("Bullet"))
+    //    //{
+    //    //    DespawnEnemy(); // Chama a função para despawnar o objeto
+    //    //}
+    //}
 
     public override void FixedUpdateNetwork()
     {
@@ -55,7 +79,11 @@ public class Enemy : NetworkBehaviour
 
     private void DespawnEnemy()
     {
+        Debug.Log("Despawn");
         if (!isInitialized || !Object.HasStateAuthority) return;
+
+        Destroy(gameObject);//Destroi o objeto
+        Runner.Despawn(Object);//Destroi o objeto na rede
 
         // Notifique todos os clientes para despawn o inimigo
         RPC_DespawnEnemy();
