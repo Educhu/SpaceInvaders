@@ -26,7 +26,7 @@ public class NetworkObjectPoolDefault : NetworkObjectProviderDefault
                 _free.Add(networkObject.NetworkTypeId, stack);
             }
             stack.Push(networkObject);
-            Debug.Log($"Objeto retornado à pool: {networkObject.name}");
+           // Debug.Log($"Objeto retornado à pool: {networkObject.name}");
         }
     }
 
@@ -47,12 +47,12 @@ public class NetworkObjectPoolDefault : NetworkObjectProviderDefault
         {
             instance.gameObject.SetActive(false);
             stack.Push(instance);
-            Debug.Log($"Objeto retornado à pool: {instance.name}");
+           // Debug.Log($"Objeto retornado à pool: {instance.name}");
         }
         else
         {
             Destroy(instance.gameObject);
-            Debug.Log($"Objeto destruído: {instance.name}");
+           // Debug.Log($"Objeto destruído: {instance.name}");
         }
     }
 
@@ -74,7 +74,7 @@ public class NetworkObjectPoolDefault : NetworkObjectProviderDefault
         }
 
         instance.gameObject.SetActive(true);
-        Debug.Log($"Objeto retirado da pool: {instance.name}");
+       // Debug.Log($"Objeto retirado da pool: {instance.name}");
         return instance;
     }
 
@@ -88,7 +88,7 @@ public class NetworkObjectPoolDefault : NetworkObjectProviderDefault
             _free.Add(prefab.NetworkTypeId, stack);
         }
 
-        Debug.Log($"Nova instância criada: {instance.name}");
+       // Debug.Log($"Nova instância criada: {instance.name}");
         return instance;
     }
 

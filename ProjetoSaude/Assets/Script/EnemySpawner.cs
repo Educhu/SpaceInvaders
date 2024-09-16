@@ -5,6 +5,10 @@ using UnityEngine;
 using System.Collections;
 
 
+using Fusion;
+using UnityEngine;
+using System.Collections;
+
 public class EnemySpawner : NetworkBehaviour
 {
     public NetworkObject enemyPrefab;
@@ -19,6 +23,18 @@ public class EnemySpawner : NetworkBehaviour
 
     private void Start()
     {
+        // Checa se todos os objetos necessários estão atribuídos
+        if (enemyPrefab == null)
+        {
+            Debug.LogError("enemyPrefab não está atribuído.");
+            return;
+        }
+        if (objectPool == null)
+        {
+            Debug.LogError("objectPool não está atribuído.");
+            return;
+        }
+
         StartCoroutine(StartSpawningWithDelay(5f)); // Inicia a rotina com um atraso de 5 segundos
     }
 
@@ -30,7 +46,7 @@ public class EnemySpawner : NetworkBehaviour
 
     private void Update()
     {
-        if (Runner.IsServer)
+        if (Runner != null && Runner.IsServer) // Verifica se Runner não é nulo e se é o servidor
         {
             timer += Time.deltaTime;
 
@@ -50,12 +66,18 @@ public class EnemySpawner : NetworkBehaviour
         // Obtenha o inimigo da pool
         NetworkObject enemyObject = objectPool.GetObjectFromPool(enemyPrefab);
 
+        if (enemyObject == null)
+        {
+            Debug.LogError("Não foi possível obter um inimigo da pool.");
+            return;
+        }
+
         // Defina a posição e rotação do inimigo antes de spawná-lo na rede
         enemyObject.transform.position = spawnPosition;
         enemyObject.transform.rotation = Quaternion.identity;
 
         // Faça o spawn do inimigo na rede
-        Runner.Spawn(enemyObject, spawnPosition, Quaternion.identity, Object.InputAuthority);
+        Runner.Spawn(enemyObject, spawnPosition, Quaternion.identity, Runner.LocalPlayer); // Ajuste para Runner.LocalPlayer se necessário
 
         // Atualize o intervalo de spawn
         spawnInterval = UnityEngine.Random.Range(0.1f, 1f);

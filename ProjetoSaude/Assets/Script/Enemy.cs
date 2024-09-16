@@ -9,31 +9,48 @@ using static Unity.Collections.Unicode;
 
 public class Enemy : NetworkBehaviour
 {
-    [Networked] private bool IsCollidingWithWall { get; set; }
-    [Networked] private bool IsAlive { get; set; } = true; // Propriedade para controlar se o inimigo está vivo
-
-    [SerializeField] private float despawnTime = 5.0f; // Tempo antes de despawn (em segundos)
-    private TickTimer despawnTimer;
-
-    private bool isInitialized = false;
-
-    public override void Spawned()
+    public enum MovementType
     {
+<<<<<<< Updated upstream
         base.Spawned();
         isInitialized = true;
 
         // Inicie o timer de despawn
         despawnTimer = TickTimer.CreateFromSeconds(Runner, despawnTime);
+=======
+        Falling,
+        Pursue,
+        StopAtDistance
+>>>>>>> Stashed changes
     }
 
-    private void OnTriggerStay2D(Collider2D collision)
-    {
-        if (!isInitialized || !Runner.IsRunning) return;
+    public MovementType movementType;
+    public float chaseRadius = 5f;
+    public float stopDistance = 1f;
+    public float speed = 3f;
 
-        // Verifica se a colisão é com uma parede
-        if (collision.CompareTag("Wall"))
+    private Transform targetPlayer;
+    public CircleCollider2D visionCollider; // O trigger de visão
+   
+
+    private void Start()
+    {
+       
+    }
+
+    private void Update()
+    {
+        switch (movementType)
         {
-            IsCollidingWithWall = true;
+            case MovementType.Falling:
+                HandleFallingMovement();
+                break;
+            case MovementType.Pursue:
+                HandlePursueMovement();
+                break;
+            case MovementType.StopAtDistance:
+                HandleStopAtDistanceMovement();
+                break;
         }
 
         //if (collision.CompareTag("Bullet"))
@@ -42,6 +59,7 @@ public class Enemy : NetworkBehaviour
         //}
     }
 
+<<<<<<< Updated upstream
     //private void OnTriggerEnter2D(Collider2D collision)
     //{
     //    Debug.Log("ENCOSTOU!");
@@ -61,24 +79,19 @@ public class Enemy : NetworkBehaviour
     //}
 
     public override void FixedUpdateNetwork()
+=======
+    private void HandleFallingMovement()
+>>>>>>> Stashed changes
     {
-        if (!isInitialized || !Object.HasStateAuthority) return;
-
-        if (IsCollidingWithWall)
+        if (transform != null)
         {
-            DespawnEnemy();
-            IsCollidingWithWall = false; // Reseta o estado após o despawn
-        }
-
-        if (despawnTimer.Expired(Runner))
-        {
-            DespawnEnemy();
-            despawnTimer = TickTimer.None; // Opcional: Desativa o timer após o despawn
+            transform.Translate(Vector3.down * speed * Time.deltaTime);
         }
     }
 
-    private void DespawnEnemy()
+    private void HandlePursueMovement()
     {
+<<<<<<< Updated upstream
         Debug.Log("Despawn");
         if (!isInitialized || !Object.HasStateAuthority) return;
 
@@ -87,17 +100,37 @@ public class Enemy : NetworkBehaviour
 
         // Notifique todos os clientes para despawn o inimigo
         RPC_DespawnEnemy();
+=======
+        if (targetPlayer != null && transform != null)
+        {
+            Vector3 direction = (targetPlayer.position - transform.position).normalized;
+            transform.position += direction * speed * Time.deltaTime;
+        }
+>>>>>>> Stashed changes
     }
 
-    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-    private void RPC_DespawnEnemy()
+    private void HandleStopAtDistanceMovement()
     {
-        if (!isInitialized) return;
+        if (targetPlayer != null && transform != null)
+        {
+            float distance = Vector3.Distance(transform.position, targetPlayer.position);
 
-        // Desativa o GameObject para todos os clientes
-        gameObject.SetActive(false);
-
-        // Alternativamente, se preferir destruir o objeto
-        // Runner.Despawn(Object);
+            if (distance > stopDistance)
+            {
+                Vector3 direction = (targetPlayer.position - transform.position).normalized;
+                transform.position += direction * speed * Time.deltaTime;
+            }
+        }
     }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        // Verifica se o objeto que entrou no trigger de visão é um jogador
+        PlayerDataNetworked playerData = other.GetComponent<PlayerDataNetworked>();
+        if (playerData != null)
+        {
+            targetPlayer = playerData.transform;
+        }
+    }
+
 }

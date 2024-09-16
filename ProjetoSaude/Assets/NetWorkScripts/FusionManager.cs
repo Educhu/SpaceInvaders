@@ -7,9 +7,12 @@ using UnityEditor;
 using UnityEngine;
 using static System.Collections.Specialized.BitVector32;
 using UnityEngine.SceneManagement;
+using Unity.VisualScripting;
 
 public class FusionManager : MonoBehaviour, INetworkRunnerCallbacks
 {
+    public static FusionManager Instance { get; private set; }
+
     public static bool sessionCreated = false;
 
     [SerializeField] private NetworkPrefabRef _playerPrefab;
@@ -29,17 +32,28 @@ public class FusionManager : MonoBehaviour, INetworkRunnerCallbacks
 
     private void Awake()
     {
-        runnerInstance = gameObject.GetComponent<NetworkRunner>();
-
-        if (runnerInstance == null)
+        // implementação de singleton 
+        if (Instance == null)
         {
-            runnerInstance = gameObject.AddComponent<NetworkRunner>();
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+
+            runnerInstance = gameObject.GetComponent<NetworkRunner>();
+
+            if (runnerInstance == null)
+            {
+                runnerInstance = gameObject.AddComponent<NetworkRunner>();
+            }
+        }
+        else
+        {
+            Destroy(gameObject);
         }
     }
 
     private void Start()
     {
-         runnerInstance.JoinSessionLobby(SessionLobby.Shared, lobbyName);
+        runnerInstance.JoinSessionLobby(SessionLobby.Shared, lobbyName);
     }
 
     public void CreatedRandomSession()
@@ -79,36 +93,22 @@ public class FusionManager : MonoBehaviour, INetworkRunnerCallbacks
     {
         if (!runner.IsServer) return; // Garante que apenas o servidor realize a instância
 
-        // Verifica se o jogador já foi instanciado para este player
         if (_spawnedCharacters.ContainsKey(player))
             return;
 
-        // Defina os limites da área onde você deseja que o jogador apareça
         float minX = -5f;
         float maxX = 5f;
         float minZ = -5f;
         float maxZ = 5f;
 
-        // Gera uma posição aleatória dentro dos limites especificados
         float randomX = UnityEngine.Random.Range(minX, maxX);
         float randomZ = UnityEngine.Random.Range(minZ, maxZ);
         Vector3 spawnPosition = new Vector3(randomX, 1, randomZ);
 
-        // Instancia o objeto de rede do jogador com autoridade de input para o cliente específico
         NetworkObject networkPlayerObject = runner.Spawn(_playerPrefab, spawnPosition, Quaternion.identity, player);
 
-        // Mantém o controle dos avatares dos jogadores para acesso fácil
         _spawnedCharacters.Add(player, networkPlayerObject);
     }
-
-    /*
-    Metodo para atualizar  a posição frame a frame (não esta sendo utilizado)
-    private void UpdatePlayerPosition(NetworkObject networkPlayerObject, Vector3 position)
-    {
-        // Acessa o Transform do NetworkObject e atualiza a posição
-        Transform playerTransform = networkPlayerObject.transform;
-        playerTransform.position = position;
-    }*/
 
     public int GetSceneIndex(string sceneName)
     {

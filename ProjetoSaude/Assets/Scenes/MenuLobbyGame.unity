@@ -1014,7 +1014,7 @@ MonoBehaviour:
   lobbyName: Default
   sessionListContentParent: {fileID: 653689174}
   sessionListEntryPrefab: {fileID: 5857891224271173917, guid: f00d43e183ef867408a00a1e7ef9ecc9, type: 3}
-  lobbyGameSceneName: LobbyGameScene
+  lobbyGameSceneName: GameScene
   botaoCriacao: {fileID: 945651724}
 --- !u!4 &1690766110
 Transform:
